@@ -1,0 +1,118 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  body {
+    @apply bg-bg-primary text-text-primary antialiased;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', sans-serif;
+  }
+
+  /* Hacker Selection Effect */
+  ::selection {
+    background-color: #818cf8;
+    color: #22d3ee;
+  }
+
+  ::-moz-selection {
+    background-color: #818cf8;
+    color: #22d3ee;
+  }
+}
+
+@layer components {
+  /* Glassmorphism Utility */
+  .glass {
+    @apply backdrop-blur-xl bg-white/5 border border-white/10;
+  }
+
+  .glass-strong {
+    @apply backdrop-blur-2xl bg-white/10 border border-white/20;
+  }
+
+  /* Neon Glow Effects */
+  .neon-glow {
+    box-shadow: 0 0 10px currentColor, 0 0 20px currentColor, 0 0 30px currentColor;
+  }
+
+  .neon-glow-cyan {
+    box-shadow: 0 0 10px #22d3ee, 0 0 20px #22d3ee, 0 0 30px #22d3ee;
+  }
+
+  .neon-glow-indigo {
+    box-shadow: 0 0 10px #818cf8, 0 0 20px #818cf8, 0 0 30px #818cf8;
+  }
+}
+
+@layer utilities {
+  /* Scroll Progress Bar */
+  .scroll-progress {
+    position: fixed;
+    top: 0;
+    left: 0;
+    height: 2px;
+    background: linear-gradient(90deg, #818cf8, #22d3ee);
+    z-index: 9999;
+    transition: width 0.1s ease-out;
+  }
+}
+
+/* Glitch Effect for Cyber Security Cards */
+.glitch-effect {
+  position: relative;
+}
+
+.glitch-effect:hover::before,
+.glitch-effect:hover::after {
+  content: attr(data-text);
+  position: absolute;
+  top: 0;
+  left: 0;
+  width: 100%;
+  height: 100%;
+}
+
+.glitch-effect:hover::before {
+  animation: glitch-1 0.3s infinite;
+  color: #ec4899;
+  z-index: -1;
+}
+
+.glitch-effect:hover::after {
+  animation: glitch-2 0.3s infinite;
+  color: #22d3ee;
+  z-index: -2;
+}
+
+@keyframes glitch-1 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(-2px, 2px); }
+  40% { transform: translate(-2px, -2px); }
+  60% { transform: translate(2px, 2px); }
+  80% { transform: translate(2px, -2px); }
+}
+
+@keyframes glitch-2 {
+  0%, 100% { transform: translate(0); }
+  20% { transform: translate(2px, 2px); }
+  40% { transform: translate(2px, -2px); }
+  60% { transform: translate(-2px, 2px); }
+  80% { transform: translate(-2px, -2px); }
+}
+
+/* Rocket Animation for Logo Rage Click */
+@keyframes rocket-launch {
+  0% {
+    transform: translateY(0) rotate(0deg);
+    opacity: 1;
+  }
+  100% {
+    transform: translateY(-200vh) rotate(45deg);
+    opacity: 0;
+  }
+}
+
+.rocket-launch {
+  animation: rocket-launch 1s ease-out forwards;
+}
+
