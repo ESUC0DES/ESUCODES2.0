@@ -1,8 +1,10 @@
-'use server'
-
-const WORDPRESS_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_API_URL || ''
-
-export interface WordPressLoginResult {
+ 'use server'
+ 
+ import { cookies } from 'next/headers'
+ 
+ const WORDPRESS_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_API_URL || ''
+ 
+ export interface WordPressLoginResult {
   success: boolean
   error?: string
 }
@@ -50,7 +52,15 @@ export async function loginWithWordPress(
       }
     }
 
-    // Ileride HttpOnly cookie/tabanli session eklemek istersek burada cookies().set ile yapilabilir.
+    // WordPress kimligi dogrulandi, HttpOnly admin cookie set edelim
+    const cookieStore = cookies()
+    cookieStore.set('admin_session', 'wp_admin', {
+      httpOnly: true,
+      sameSite: 'lax',
+      secure: process.env.NODE_ENV === 'production',
+      path: '/',
+      maxAge: 60 * 60 * 8, // 8 saat
+    })
 
     return {
       success: true,
@@ -63,4 +73,9 @@ export async function loginWithWordPress(
         error instanceof Error ? error.message : 'Unknown error during login',
     }
   }
+}
+
+export async function logoutAdmin() {
+  const cookieStore = cookies()
+  cookieStore.delete('admin_session')
 }

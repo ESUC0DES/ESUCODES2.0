@@ -63,7 +63,7 @@ export async function updateRobotStats(
 
     // Revalidate paths
     revalidatePath('/robotics')
-    revalidatePath('/cockpit')
+    revalidatePath('/robotics/cockpit')
 
     return {
       success: true,
