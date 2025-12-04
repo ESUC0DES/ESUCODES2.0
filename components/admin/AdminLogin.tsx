@@ -1,11 +1,12 @@
-'use client'
-
-import { useState } from 'react'
-import { useRouter } from 'next/navigation'
-import { motion } from 'framer-motion'
-import { Terminal, Lock, AlertCircle } from 'lucide-react'
-
-export default function AdminLogin() {
+ 'use client'
+ 
+ import { useState } from 'react'
+ import { useRouter } from 'next/navigation'
+ import { motion } from 'framer-motion'
+ import { Terminal, Lock, AlertCircle } from 'lucide-react'
+ import { loginWithWordPress } from '@/actions/wp-auth'
+ 
+ export default function AdminLogin() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -17,17 +18,22 @@ export default function AdminLogin() {
     setError('')
     setIsLoading(true)
 
-    // Mock authentication - Gerçek implementasyonda JWT token kontrolü yapılacak
-    setTimeout(() => {
-      if (username === 'admin' && password === 'admin123') {
-        // Token kaydet (gerçek implementasyonda)
-        localStorage.setItem('admin_token', 'mock_token')
+    try {
+      const result = await loginWithWordPress(username, password)
+
+      if (result.success) {
+        // Basit token - ileride HttpOnly cookie / gercek session ile degistirilebilir
+        localStorage.setItem('admin_token', 'wp_admin')
         router.push('/admin')
       } else {
-        setError('ACCESS DENIED')
+        setError(result.error || 'ACCESS DENIED')
         setIsLoading(false)
       }
-    }, 1000)
+    } catch (err) {
+      console.error(err)
+      setError('LOGIN FAILED')
+      setIsLoading(false)
+    }
   }
 
   return (

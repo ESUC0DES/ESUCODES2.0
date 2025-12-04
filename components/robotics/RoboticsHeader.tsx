@@ -47,16 +47,16 @@ export default function RoboticsHeader() {
               </motion.div>
             </Link>
 
-            {/* Login Button */}
-            <Link href="/admin/login">
+            {/* Robotics Cockpit Login Button */}
+            <Link href="/robotics/cockpit/login">
               <motion.button
-                className="flex items-center space-x-2 px-4 py-2 bg-slate-900/50 border border-slate-800 rounded-lg font-mono text-sm text-sky-400 hover:border-sky-400 hover:bg-slate-900 transition-all duration-300 group"
-                whileHover={{ scale: 1.05 }}
-                whileTap={{ scale: 0.95 }}
+                className="flex items-center space-x-2 px-4 py-2 bg-[#050505] border-2 border-[#10b981] rounded-lg font-mono text-sm text-[#10b981] hover:bg-[#10b981] hover:text-[#050505] transition-all duration-300 group shadow-[0_0_20px_rgba(16,185,129,0.3)]"
+                whileHover={{ scale: 1.08 }}
+                whileTap={{ scale: 0.96 }}
               >
                 <Terminal className="w-4 h-4" />
-                <span className="group-hover:hidden">Login</span>
-                <span className="hidden group-hover:inline">Access?</span>
+                <span className="group-hover:hidden">COCKPIT LOGIN</span>
+                <span className="hidden group-hover:inline">ENTER HANGAR</span>
               </motion.button>
             </Link>
           </div>
