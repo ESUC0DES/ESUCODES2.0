@@ -107,7 +107,7 @@ export default function AIHeader() {
             </Link>
 
             {/* Login Button */}
-            <Link href="/admin/login">
+            <Link href="/ai/login">
               <motion.button
                 className="flex items-center space-x-2 px-4 py-2 bg-white/5 border border-white/10 rounded-lg font-mono text-sm text-white hover:border-white/30 hover:bg-white/10 transition-all duration-300 group"
                 whileHover={{ scale: 1.05 }}

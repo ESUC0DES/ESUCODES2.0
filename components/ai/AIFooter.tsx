@@ -10,7 +10,7 @@ export default function AIFooter() {
         <div className="flex flex-col md:flex-row justify-between items-center">
           <div className="mb-4 md:mb-0">
             <p className="text-gray-400 font-mono text-sm">
-              © 2024 ESUCODES. All rights reserved.
+              © 2025 ESUCODES. All rights reserved.
             </p>
           </div>
           <div className="flex space-x-6">
