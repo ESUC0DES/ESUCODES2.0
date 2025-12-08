@@ -4,7 +4,6 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { Terminal, Bot, Brain, Gamepad2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { LogoMain } from '@/components/logos/LogoMain'
 
 export default function Header() {
   const [clickCount, setClickCount] = useState(0)
@@ -40,7 +39,7 @@ export default function Header() {
       <div className="container mx-auto px-4 py-4">
         <div className="flex items-center justify-between">
           {/* Logo */}
-          <Link href="/" className="flex items-center">
+          <Link href="/" className="flex items-center space-x-2">
             <motion.div
               onClick={handleLogoClick}
               className={`text-xl md:text-2xl font-bold bg-gradient-to-r from-accent-primary to-accent-tertiary bg-clip-text text-transparent cursor-pointer select-none ${
