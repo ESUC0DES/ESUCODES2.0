@@ -10,9 +10,10 @@ import {
   Settings,
   Globe2,
 } from 'lucide-react'
-import { getPosts } from '@/lib/wordpress'
+import { getPosts } from '@/actions/wordpress-data'
 import { createBlogPost } from '@/actions/blog-actions'
 import { logoutAdmin } from '@/actions/wp-auth'
+import { checkAuth } from '@/app/admin/check-auth'
  
  export default function AdminDashboard() {
   const router = useRouter()
@@ -37,13 +38,16 @@ import { logoutAdmin } from '@/actions/wp-auth'
   const [publishError, setPublishError] = useState<string | null>(null)
 
   useEffect(() => {
-    // Token kontrolü
-    const token = localStorage.getItem('admin_token')
-    if (!token) {
-      router.push('/admin/login')
-    } else {
-      setIsAuthenticated(true)
+    // Server-side session check using HttpOnly cookie
+    const verifySession = async () => {
+      const authenticated = await checkAuth()
+      if (!authenticated) {
+        router.push('/admin/login')
+      } else {
+        setIsAuthenticated(true)
+      }
     }
+    verifySession()
   }, [router])
 
   // Overview bilgilerini çek
@@ -56,7 +60,9 @@ import { logoutAdmin } from '@/actions/wp-auth'
           lastPostTitle: posts[0]?.title.rendered || null,
         })
       } catch (error) {
-        console.error(error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error(error)
+        }
       } finally {
         setIsLoadingOverview(false)
       }
@@ -68,7 +74,6 @@ import { logoutAdmin } from '@/actions/wp-auth'
   }, [isAuthenticated])
 
   const handleLogout = async () => {
-    localStorage.removeItem('admin_token')
     await logoutAdmin()
     router.push('/admin/login')
   }
@@ -113,7 +118,9 @@ import { logoutAdmin } from '@/actions/wp-auth'
         setPublishError(result.error || 'Yazı oluşturulurken hata oluştu')
       }
     } catch (error) {
-      console.error(error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
       setPublishError('Beklenmeyen bir hata oluştu')
     } finally {
       setIsPublishing(false)

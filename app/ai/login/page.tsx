@@ -5,6 +5,9 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Brain, Zap, Sparkles, Atom, Cpu, Network, Lock } from 'lucide-react'
 import { loginWithWordPress } from '@/actions/wp-auth'
+import { LoginSchema } from '@/lib/schemas/auth'
+import { getCsrfToken } from '@/actions/csrf'
+import CsrfInput from '@/components/ui/CsrfInput'
 
 export default function AILogin() {
   const router = useRouter()
@@ -12,6 +15,11 @@ export default function AILogin() {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [csrfToken, setCsrfToken] = useState<string>('')
+  const [fieldErrors, setFieldErrors] = useState<{
+    username?: string
+    password?: string
+  }>({})
   const [neuralLayers, setNeuralLayers] = useState<number[]>([])
   const [particles, setParticles] = useState<Array<{ id: number; x: number; y: number }>>([])
 
@@ -31,16 +39,57 @@ export default function AILogin() {
     setParticles(newParticles)
   }, [])
 
+  // Fetch CSRF token on mount
+  useEffect(() => {
+    const fetchCsrfToken = async () => {
+      try {
+        const token = await getCsrfToken()
+        setCsrfToken(token)
+      } catch (err) {
+        console.error('Failed to fetch CSRF token:', err)
+        setError('Security token initialization failed')
+      }
+    }
+    fetchCsrfToken()
+  }, [])
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Client-side validation with Zod
+    const validationResult = LoginSchema.safeParse({ username, password })
+
+    if (!validationResult.success) {
+      // Extract field-specific errors
+      const errors: { username?: string; password?: string } = {}
+      
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0] === 'username') {
+          errors.username = err.message
+        } else if (err.path[0] === 'password') {
+          errors.password = err.message
+        }
+      })
+
+      setFieldErrors(errors)
+      return // Do not submit if validation fails
+    }
+
+    // Check if CSRF token is available
+    if (!csrfToken) {
+      setError('Security token not loaded. Please refresh the page.')
+      return
+    }
+
     setIsLoading(true)
 
     try {
-      const result = await loginWithWordPress(username, password)
+      const result = await loginWithWordPress(username, password, csrfToken)
 
       if (result.success) {
-        localStorage.setItem('admin_token', 'wp_admin')
+        // Session cookie set by server action - redirect to AI page
         setTimeout(() => {
           router.push('/ai')
         }, 500)
@@ -285,6 +334,8 @@ export default function AILogin() {
 
             {/* Form */}
             <form onSubmit={handleSubmit} className="space-y-6 relative z-10">
+              {/* CSRF Token */}
+              {csrfToken && <CsrfInput token={csrfToken} />}
               <motion.div
                 initial={{ opacity: 0, x: -20 }}
                 animate={{ opacity: 1, x: 0 }}
@@ -299,12 +350,31 @@ export default function AILogin() {
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="relative w-full bg-black/50 border-2 border-white/20 rounded-xl text-white px-4 py-3 focus:outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all placeholder-white/30"
+                    onChange={(e) => {
+                      setUsername(e.target.value)
+                      // Clear error when user starts typing
+                      if (fieldErrors.username) {
+                        setFieldErrors((prev) => ({ ...prev, username: undefined }))
+                      }
+                    }}
+                    className={`relative w-full bg-black/50 border-2 rounded-xl text-white px-4 py-3 focus:outline-none focus:ring-2 transition-all placeholder-white/30 ${
+                      fieldErrors.username
+                        ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
+                        : 'border-white/20 focus:border-white/50 focus:ring-white/20'
+                    }`}
                     placeholder="Enter your username"
                     required
                   />
                 </div>
+                {fieldErrors.username && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-red-400 text-xs"
+                  >
+                    {fieldErrors.username}
+                  </motion.p>
+                )}
               </motion.div>
 
               <motion.div
@@ -321,12 +391,31 @@ export default function AILogin() {
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="relative w-full bg-black/50 border-2 border-white/20 rounded-xl text-white px-4 py-3 focus:outline-none focus:border-white/50 focus:ring-2 focus:ring-white/20 transition-all placeholder-white/30"
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      // Clear error when user starts typing
+                      if (fieldErrors.password) {
+                        setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    className={`relative w-full bg-black/50 border-2 rounded-xl text-white px-4 py-3 focus:outline-none focus:ring-2 transition-all placeholder-white/30 ${
+                      fieldErrors.password
+                        ? 'border-red-500/50 focus:border-red-500/50 focus:ring-red-500/20'
+                        : 'border-white/20 focus:border-white/50 focus:ring-white/20'
+                    }`}
                     placeholder="Enter your password"
                     required
                   />
                 </div>
+                {fieldErrors.password && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-red-400 text-xs"
+                  >
+                    {fieldErrors.password}
+                  </motion.p>
+                )}
               </motion.div>
 
               <motion.button

@@ -4,6 +4,11 @@ import { useEffect } from 'react'
 
 export default function ConsoleHiring() {
   useEffect(() => {
+    // Only show in development
+    if (process.env.NODE_ENV !== 'development') {
+      return
+    }
+
     const style = [
       'color: #22d3ee',
       'font-size: 20px',

@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Search, Calendar } from 'lucide-react'
-import { getPosts, getCategories, type WordPressPost, type WordPressCategory } from '@/lib/wordpress'
+import { getPosts, getCategories, type WordPressPost, type WordPressCategory } from '@/actions/wordpress-data'
 
 const POSTS_PER_PAGE = 12
 
@@ -33,18 +33,25 @@ export default function BlogLibrary() {
     const fetchData = async () => {
       try {
         setLoading(true)
-        console.log('WordPress API URL:', process.env.NEXT_PUBLIC_WORDPRESS_API_URL)
+        
+        // Debug logging - only in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('WordPress API URL:', process.env.NEXT_PUBLIC_WORDPRESS_API_URL)
+        }
         
         const [{ posts, totalPages }, cats] = await Promise.all([
           getPosts({ per_page: POSTS_PER_PAGE, page: currentPage }),
           getCategories(),
         ])
 
-        console.log('Fetched posts:', posts.length)
-        console.log('Fetched categories:', cats.length)
-        console.log('Total pages:', totalPages)
+        // Debug logging - only in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Fetched posts:', posts.length)
+          console.log('Fetched categories:', cats.length)
+          console.log('Total pages:', totalPages)
+        }
 
-        if (posts.length === 0) {
+        if (posts.length === 0 && process.env.NODE_ENV === 'development') {
           console.warn('WordPress\'ten hiç yazı gelmedi. WordPress\'te yazı olduğundan emin olun.')
         }
 
@@ -83,8 +90,11 @@ export default function BlogLibrary() {
         setCategories(categoryNames)
         setWpCategories(cats)
       } catch (error) {
-        console.error('Error fetching blog data:', error)
-        console.error('Error details:', error instanceof Error ? error.message : String(error))
+        // Only log errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching blog data:', error)
+          console.error('Error details:', error instanceof Error ? error.message : String(error))
+        }
         // Hata durumunda boş array
         setAllPosts([])
       } finally {

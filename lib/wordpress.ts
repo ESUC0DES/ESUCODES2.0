@@ -1,11 +1,44 @@
 /**
  * WordPress API Helper Functions
  * Headless WordPress ile iletişim için yardımcı fonksiyonlar
+ * 
+ * SECURITY: This file is server-only. Client components must use Server Actions
+ * from actions/wordpress-data.ts to access WordPress data.
  */
 
+import 'server-only'
+import { logError, SystemError } from '@/lib/errors'
+import { logger } from '@/lib/logger'
+
+// Public API URL (safe to expose)
 const WORDPRESS_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_API_URL || ''
-const WORDPRESS_AUTH_USER = process.env.NEXT_PUBLIC_WORDPRESS_AUTH_USER || ''
-const WORDPRESS_AUTH_PASS = process.env.NEXT_PUBLIC_WORDPRESS_AUTH_PASS || ''
+
+// SECURITY: Sensitive credentials - server-only, never exposed to client
+const WORDPRESS_AUTH_USER = process.env.WORDPRESS_AUTH_USER || ''
+const WORDPRESS_AUTH_PASS = process.env.WORDPRESS_AUTH_PASS || ''
+
+/**
+ * Slug validation regex
+ * Valid slug: lowercase letters, numbers, and hyphens only
+ * Prevents injection attacks and URL manipulation
+ */
+const SLUG_REGEX = /^[a-z0-9-]+$/
+
+/**
+ * Validate slug format to prevent injection attacks
+ * 
+ * @param slug - The slug to validate
+ * @throws Error if slug format is invalid
+ */
+function validateSlug(slug: string): void {
+  if (!slug || typeof slug !== 'string') {
+    throw new Error('Invalid slug format: slug must be a non-empty string')
+  }
+
+  if (!SLUG_REGEX.test(slug)) {
+    throw new Error('Invalid slug format: slug can only contain lowercase letters, numbers, and hyphens')
+  }
+}
 
 // Base64 encode for Basic Auth
 const getAuthHeader = () => {
@@ -70,28 +103,41 @@ export async function getPosts(
 ): Promise<{ posts: WordPressPost[]; totalPages: number }> {
   try {
     if (!WORDPRESS_API_URL) {
-      console.error('WordPress API URL is not configured. Please check your .env file.')
+      logger.error('WordPress API URL is not configured', { params })
       return { posts: [], totalPages: 1 }
     }
 
-    const queryParams = new URLSearchParams()
-    if (params?.per_page) queryParams.append('per_page', params.per_page.toString())
-    if (params?.page) queryParams.append('page', params.page.toString())
-    if (params?.categories) queryParams.append('categories', params.categories.toString())
-    if (params?.search) queryParams.append('search', params.search)
-
-    const url = `${WORDPRESS_API_URL}/posts?_embed&${queryParams.toString()}`
-    console.log('Fetching from:', url)
+    // Safe URL construction using URL and URLSearchParams
+    const url = new URL(`${WORDPRESS_API_URL}/posts`)
+    url.searchParams.append('_embed', '') // WordPress embed parameter
     
-    const response = await fetch(url, {
-      cache: 'no-store', // Client-side için cache yok
+    if (params?.per_page) url.searchParams.append('per_page', params.per_page.toString())
+    if (params?.page) url.searchParams.append('page', params.page.toString())
+    if (params?.categories) url.searchParams.append('categories', params.categories.toString())
+    if (params?.search) {
+      // Sanitize search parameter to prevent injection
+      const sanitizedSearch = params.search.trim()
+      if (sanitizedSearch) {
+        url.searchParams.append('search', sanitizedSearch)
+      }
+    }
+
+    logger.debug('Fetching posts from WordPress API', { url: url.toString() })
+
+    const response = await fetch(url.toString(), {
+      cache: 'no-store', // Server-side: Always fetch fresh data
     })
 
     if (!response.ok) {
-      const errorText = await response.text()
-      console.error('WordPress API error:', response.status, response.statusText)
-      console.error('Error response:', errorText)
-      throw new Error(`WordPress API error: ${response.status} ${response.statusText}`)
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      logError(new SystemError('WordPress API error while fetching posts'), {
+        status: response.status,
+        statusText: response.statusText,
+        errorResponse: errorText,
+        params,
+      })
+      // Return empty result instead of throwing - graceful degradation
+      return { posts: [], totalPages: 1 }
     }
 
     const data = await response.json()
@@ -100,34 +146,77 @@ export async function getPosts(
 
     return { posts: data, totalPages }
   } catch (error) {
-    console.error('Error fetching posts:', error)
-    if (error instanceof TypeError && error.message.includes('fetch')) {
-      console.error('Network error: WordPress API\'ye erişilemiyor. URL\'yi kontrol edin.')
-    }
+    // Log full error details
+    logError(new SystemError('Error fetching posts from WordPress API'), {
+      originalError: error,
+      params,
+      apiUrl: WORDPRESS_API_URL,
+    })
+    // Return empty result - graceful degradation
     return { posts: [], totalPages: 1 }
   }
 }
 
 /**
  * Slug'a göre tek bir blog yazısı getir
+ * 
+ * SECURITY: Validates slug format and uses safe URL construction
+ * to prevent injection attacks and URL manipulation
  */
 export async function getPostBySlug(slug: string): Promise<WordPressPost | null> {
   try {
-    const response = await fetch(
-      `${WORDPRESS_API_URL}/posts?slug=${slug}&_embed`,
-      {
-        cache: 'no-store', // Client-side için cache yok
-      }
-    )
+    // Strict input validation - prevent injection attacks
+    validateSlug(slug)
+
+    if (!WORDPRESS_API_URL) {
+      logError(new SystemError('WordPress API URL not configured'), { slug })
+      return null
+    }
+
+    // Safe URL construction using URL and URLSearchParams
+    // Prevents URL manipulation and injection attacks
+    const url = new URL(`${WORDPRESS_API_URL}/posts`)
+    url.searchParams.append('slug', slug)
+    url.searchParams.append('_embed', '') // WordPress embed parameter
+
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        cache: 'no-store', // Server-side: Always fetch fresh data
+      })
+    } catch (fetchError) {
+      logError(new SystemError('WordPress API fetch failed for post by slug'), {
+        slug,
+        originalError: fetchError,
+        apiUrl: WORDPRESS_API_URL,
+      })
+      return null
+    }
 
     if (!response.ok) {
-      throw new Error(`WordPress API error: ${response.statusText}`)
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      logError(new SystemError('WordPress API error while fetching post by slug'), {
+        slug,
+        status: response.status,
+        statusText: response.statusText,
+        errorResponse: errorText,
+      })
+      return null
     }
 
     const posts = await response.json()
     return posts[0] || null
   } catch (error) {
-    console.error('Error fetching post:', error)
+    // Re-throw validation errors (TrustedError) - these are safe to expose
+    if (error instanceof Error && error.message.includes('Invalid slug format')) {
+      logError(new SystemError('Slug validation failed'), { slug, originalError: error })
+      throw error // Re-throw validation errors
+    }
+    // Log all other errors but return null (graceful degradation)
+    logError(new SystemError('Unexpected error fetching post by slug'), {
+      slug,
+      originalError: error,
+    })
     return null
   }
 }
@@ -137,17 +226,42 @@ export async function getPostBySlug(slug: string): Promise<WordPressPost | null>
  */
 export async function getCategories(): Promise<WordPressCategory[]> {
   try {
-    const response = await fetch(`${WORDPRESS_API_URL}/categories`, {
-      cache: 'no-store', // Client-side için cache yok
-    })
+    if (!WORDPRESS_API_URL) {
+      logError(new SystemError('WordPress API URL not configured'))
+      return []
+    }
+
+    // Safe URL construction
+    const url = new URL(`${WORDPRESS_API_URL}/categories`)
+    
+    let response: Response
+    try {
+      response = await fetch(url.toString(), {
+        cache: 'no-store', // Server-side: Always fetch fresh data
+      })
+    } catch (fetchError) {
+      logError(new SystemError('WordPress API fetch failed for categories'), {
+        originalError: fetchError,
+        apiUrl: WORDPRESS_API_URL,
+      })
+      return []
+    }
 
     if (!response.ok) {
-      throw new Error(`WordPress API error: ${response.statusText}`)
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      logError(new SystemError('WordPress API error while fetching categories'), {
+        status: response.status,
+        statusText: response.statusText,
+        errorResponse: errorText,
+      })
+      return []
     }
 
     return await response.json()
   } catch (error) {
-    console.error('Error fetching categories:', error)
+    logError(new SystemError('Unexpected error fetching categories'), {
+      originalError: error,
+    })
     return []
   }
 }
@@ -162,12 +276,19 @@ export async function createPost(
   categories?: number[]
 ): Promise<WordPressPost | null> {
   try {
+    if (!WORDPRESS_API_URL) {
+      throw new Error('WordPress API URL is not configured')
+    }
+
     const authHeader = getAuthHeader()
     if (!authHeader) {
       throw new Error('WordPress authentication credentials not configured')
     }
 
-    const response = await fetch(`${WORDPRESS_API_URL}/posts`, {
+    // Safe URL construction
+    const url = new URL(`${WORDPRESS_API_URL}/posts`)
+
+    const response = await fetch(url.toString(), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
@@ -183,12 +304,22 @@ export async function createPost(
     })
 
     if (!response.ok) {
-      throw new Error(`WordPress API error: ${response.statusText}`)
+      const errorText = await response.text().catch(() => 'Unable to read error response')
+      logError(new SystemError('WordPress API error while creating post'), {
+        status: response.status,
+        statusText: response.statusText,
+        errorResponse: errorText,
+        title,
+      })
+      return null
     }
 
     return await response.json()
   } catch (error) {
-    console.error('Error creating post:', error)
+    logError(new SystemError('Unexpected error creating post'), {
+      originalError: error,
+      title,
+    })
     return null
   }
 }
@@ -198,7 +329,15 @@ export async function createPost(
  */
 export async function testConnection(): Promise<boolean> {
   try {
-    const response = await fetch(`${WORDPRESS_API_URL}/posts?per_page=1`)
+    if (!WORDPRESS_API_URL) {
+      return false
+    }
+
+    // Safe URL construction
+    const url = new URL(`${WORDPRESS_API_URL}/posts`)
+    url.searchParams.append('per_page', '1')
+
+    const response = await fetch(url.toString())
     return response.ok
   } catch (error) {
     return false

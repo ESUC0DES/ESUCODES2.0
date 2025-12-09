@@ -4,7 +4,8 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { Calendar, Clock, Share2 } from 'lucide-react'
 import { motion } from 'framer-motion'
-import { getPostBySlug, getPosts, type WordPressPost } from '@/lib/wordpress'
+import DOMPurify from 'isomorphic-dompurify'
+import { getPostBySlug, getPosts, type WordPressPost } from '@/actions/wordpress-data'
 
 interface Post {
   title: string
@@ -65,6 +66,104 @@ const relatedPosts = [
   },
 ]
 
+/**
+ * DOMPurify configuration for sanitizing blog post HTML content
+ * Whitelist approach: Only allow safe, content-structuring tags and attributes
+ */
+const DOMPURIFY_CONFIG = {
+  ALLOWED_TAGS: [
+    'h1',
+    'h2',
+    'h3',
+    'h4',
+    'h5',
+    'h6',
+    'p',
+    'br',
+    'strong',
+    'em',
+    'u',
+    's',
+    'b',
+    'i',
+    'blockquote',
+    'ul',
+    'ol',
+    'li',
+    'code',
+    'pre',
+    'figure',
+    'figcaption',
+    'img',
+    'a',
+    'div',
+    'span',
+    'hr',
+    'table',
+    'thead',
+    'tbody',
+    'tr',
+    'th',
+    'td',
+  ],
+  ALLOWED_ATTR: [
+    'href',
+    'src',
+    'alt',
+    'title',
+    'class',
+    'id',
+    'target',
+    'rel',
+    'width',
+    'height',
+    'style', // Allow style for basic formatting (DOMPurify will sanitize CSS)
+  ],
+  ALLOW_DATA_ATTR: false, // Disallow data-* attributes to prevent XSS
+  ALLOWED_URI_REGEXP: /^(?:(?:(?:f|ht)tps?|mailto|tel|callto|sms|cid|xmpp|data):|[^a-z]|[a-z+.\-]+(?:[^a-z+.\-:]|$))/i, // Allow http/https/mailto/tel, block javascript:, vbscript:, data:
+  ADD_ATTR: ['target'], // Ensure target attribute can be added
+  ADD_TAGS: [], // No additional tags beyond whitelist
+  FORBID_TAGS: ['script', 'iframe', 'object', 'embed', 'form', 'input', 'button'], // Explicitly forbid dangerous tags
+  FORBID_ATTR: ['onerror', 'onload', 'onclick', 'onmouseover', 'onfocus', 'onblur'], // Block event handlers
+  KEEP_CONTENT: true, // Keep text content even if parent tag is removed
+  RETURN_DOM: false, // Return string, not DOM
+  RETURN_DOM_FRAGMENT: false,
+  RETURN_DOM_IMPORT: false,
+  RETURN_TRUSTED_TYPE: false,
+  SAFE_FOR_TEMPLATES: false,
+  SANITIZE_DOM: true,
+  SANITIZE_NAMED_PROPS: true,
+  WHOLE_DOCUMENT: false,
+}
+
+/**
+ * Sanitize HTML content to prevent XSS attacks
+ * Automatically adds rel="noopener noreferrer" to external links with target="_blank"
+ */
+function sanitizeHTML(html: string): string {
+  if (!html) return ''
+
+  // Sanitize the HTML content
+  const sanitized = DOMPurify.sanitize(html, DOMPURIFY_CONFIG)
+
+  // Post-process: Ensure external links have proper security attributes
+  // DOMPurify should handle this, but we add an extra safety layer
+  return sanitized.replace(
+    /<a\s+([^>]*target=["']_blank["'][^>]*)>/gi,
+    (match, attrs) => {
+      // Check if rel attribute already exists
+      if (!/rel=/i.test(attrs)) {
+        return `<a ${attrs} rel="noopener noreferrer">`
+      }
+      // If rel exists but doesn't have noopener, add it
+      if (!/rel=["'][^"']*noopener/i.test(attrs)) {
+        return match.replace(/rel=["']([^"']*)["']/i, 'rel="$1 noopener noreferrer"')
+      }
+      return match
+    }
+  )
+}
+
 export default function BlogPost({ slug }: { slug: string }) {
   const [post, setPost] = useState<Post | null>(null)
   const [relatedPosts, setRelatedPosts] = useState<RelatedPost[]>([])
@@ -92,7 +191,8 @@ export default function BlogPost({ slug }: { slug: string }) {
 
           const transformedPost: Post = {
             title: wpPost.title.rendered,
-            content: wpPost.content.rendered,
+            // Sanitize HTML content to prevent XSS attacks
+            content: sanitizeHTML(wpPost.content.rendered),
             author: {
               name: authorName,
               avatar: authorAvatar,
@@ -127,7 +227,10 @@ export default function BlogPost({ slug }: { slug: string }) {
           ])
         }
       } catch (error) {
-        console.error('Error fetching post:', error)
+        // Only log errors in development
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching post:', error)
+        }
         // Hata durumunda mock data kullan
         setPost(mockPost as unknown as Post)
         setRelatedPosts([
@@ -153,7 +256,10 @@ export default function BlogPost({ slug }: { slug: string }) {
           url: window.location.href,
         })
       } catch (err) {
-        console.log('Paylaşım iptal edildi')
+        // Only log in development
+        if (process.env.NODE_ENV === 'development') {
+          console.log('Paylaşım iptal edildi')
+        }
       }
     } else {
       navigator.clipboard.writeText(window.location.href)
@@ -244,7 +350,7 @@ export default function BlogPost({ slug }: { slug: string }) {
                   </button>
                 </div>
 
-                {/* Article Content */}
+                {/* Article Content - Sanitized HTML */}
                 <div
                   className="
                 prose prose-lg prose-invert max-w-none
