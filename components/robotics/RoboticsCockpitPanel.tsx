@@ -5,13 +5,14 @@
  import { motion } from 'framer-motion'
  import CockpitDisplay from '@/components/cockpit/CockpitDisplay'
  import TerminalLog from '@/components/cockpit/TerminalLog'
- import {
-   getRobotProjects,
-   createRobotProject,
-   updateRobotProject,
-   type RobotProject,
-   type RobotProjectStatus,
- } from '@/actions/robot-projects'
+import {
+  getRobotProjects,
+  createRobotProject,
+  updateRobotProject,
+  type RobotProject,
+  type RobotProjectStatus,
+} from '@/actions/robot-projects'
+import { checkAuth } from '@/app/robotics/cockpit/check-auth'
  
  export default function RoboticsCockpitPanel() {
   const router = useRouter()
@@ -37,14 +38,17 @@
     isVisible: false,
   })
 
-  // Auth kontrolü: WordPress admin login'inden gelen token
+  // Auth kontrolü: Server-side session check using HttpOnly cookie
   useEffect(() => {
-    const token = localStorage.getItem('admin_token')
-    if (!token) {
-      router.push('/robotics/cockpit/login')
-    } else {
-      setCheckedAuth(true)
+    const verifySession = async () => {
+      const authenticated = await checkAuth()
+      if (!authenticated) {
+        router.push('/robotics/cockpit/login')
+      } else {
+        setCheckedAuth(true)
+      }
     }
+    verifySession()
   }, [router])
 
   // Projeleri yukle
@@ -55,7 +59,9 @@
         setProjects(data)
         setLastUpdate('Just now')
       } catch (error) {
-        console.error(error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error(error)
+        }
         showTerminalLog('FAILED TO LOAD PROJECTS', 'error')
       } finally {
         setIsLoadingProjects(false)
@@ -131,7 +137,9 @@
 
       setIsModalOpen(false)
     } catch (error) {
-      console.error(error)
+      if (process.env.NODE_ENV === 'development') {
+        console.error(error)
+      }
       showTerminalLog('FAILED TO SAVE PROJECT', 'error')
     } finally {
       setIsSavingProject(false)

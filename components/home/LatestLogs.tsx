@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { ArrowRight, Calendar } from 'lucide-react'
-import { getPosts, type WordPressPost } from '@/lib/wordpress'
+import { getPosts, type WordPressPost } from '@/actions/wordpress-data'
 
 interface Post {
   id: number
@@ -43,7 +43,9 @@ export default function LatestLogs() {
 
         setLatestPosts(transformedPosts)
       } catch (error) {
-        console.error('Error fetching latest posts:', error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching latest posts:', error)
+        }
         setLatestPosts([])
       } finally {
         setLoading(false)

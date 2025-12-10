@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import Link from 'next/link'
 import { motion } from 'framer-motion'
 import { Search, Calendar, Gamepad2 } from 'lucide-react'
-import { getPosts, getCategories, type WordPressPost, type WordPressCategory } from '@/lib/wordpress'
+import { getPosts, getCategories, type WordPressPost, type WordPressCategory } from '@/actions/wordpress-data'
 
 const POSTS_PER_PAGE = 12
 
@@ -88,7 +88,9 @@ export default function GamesLibrary() {
         setCategories(categoryNames)
         setWpCategories(cats)
       } catch (error) {
-        console.error('Error fetching games data:', error)
+        if (process.env.NODE_ENV === 'development') {
+          console.error('Error fetching games data:', error)
+        }
         setAllPosts([])
       } finally {
         setLoading(false)

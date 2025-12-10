@@ -5,32 +5,59 @@
  import { motion } from 'framer-motion'
  import { Terminal, Lock, AlertCircle } from 'lucide-react'
  import { loginWithWordPress } from '@/actions/wp-auth'
+ import { LoginSchema } from '@/lib/schemas/auth'
  
  export default function AdminLogin() {
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [isLoading, setIsLoading] = useState(false)
+  const [fieldErrors, setFieldErrors] = useState<{
+    username?: string
+    password?: string
+  }>({})
   const router = useRouter()
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Client-side validation with Zod
+    const validationResult = LoginSchema.safeParse({ username, password })
+
+    if (!validationResult.success) {
+      // Extract field-specific errors
+      const errors: { username?: string; password?: string } = {}
+      
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0] === 'username') {
+          errors.username = err.message
+        } else if (err.path[0] === 'password') {
+          errors.password = err.message
+        }
+      })
+
+      setFieldErrors(errors)
+      return // Do not submit if validation fails
+    }
+
     setIsLoading(true)
 
     try {
       const result = await loginWithWordPress(username, password)
 
       if (result.success) {
-        // Basit token - ileride HttpOnly cookie / gercek session ile degistirilebilir
-        localStorage.setItem('admin_token', 'wp_admin')
+        // Session cookie set by server action - redirect to dashboard
         router.push('/admin')
       } else {
         setError(result.error || 'ACCESS DENIED')
         setIsLoading(false)
       }
     } catch (err) {
-      console.error(err)
+      if (process.env.NODE_ENV === 'development') {
+        console.error(err)
+      }
       setError('LOGIN FAILED')
       setIsLoading(false)
     }
@@ -78,11 +105,23 @@
               <input
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full px-4 py-3 glass rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary font-mono"
+                onChange={(e) => {
+                  setUsername(e.target.value)
+                  if (fieldErrors.username) {
+                    setFieldErrors((prev) => ({ ...prev, username: undefined }))
+                  }
+                }}
+                className={`w-full px-4 py-3 glass rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 font-mono ${
+                  fieldErrors.username
+                    ? 'focus:ring-red-500 border-red-500/50'
+                    : 'focus:ring-accent-primary'
+                }`}
                 placeholder="admin"
                 required
               />
+              {fieldErrors.username && (
+                <p className="mt-2 text-red-400 text-xs">{fieldErrors.username}</p>
+              )}
             </div>
 
             <div>
@@ -92,11 +131,23 @@
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full px-4 py-3 glass rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 focus:ring-accent-primary font-mono"
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                  }
+                }}
+                className={`w-full px-4 py-3 glass rounded-lg text-text-primary placeholder-text-muted focus:outline-none focus:ring-2 font-mono ${
+                  fieldErrors.password
+                    ? 'focus:ring-red-500 border-red-500/50'
+                    : 'focus:ring-accent-primary'
+                }`}
                 placeholder="••••••••"
                 required
               />
+              {fieldErrors.password && (
+                <p className="mt-2 text-red-400 text-xs">{fieldErrors.password}</p>
+              )}
             </div>
 
             <motion.button

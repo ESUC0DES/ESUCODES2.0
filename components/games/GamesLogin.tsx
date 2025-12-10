@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Gamepad2, Zap, Trophy, Sparkles, Star } from 'lucide-react'
 import { loginWithWordPress } from '@/actions/wp-auth'
+import { LoginSchema } from '@/lib/schemas/auth'
 
 // Tetris block colors
 const TETRIS_COLORS = {
@@ -29,6 +30,10 @@ export default function GamesLogin() {
   const [isTyping, setIsTyping] = useState(true)
   const [systemLogs, setSystemLogs] = useState<string[]>([])
   const [floatingBlocks, setFloatingBlocks] = useState<Array<{ id: number; type: TetrisBlockType; x: number; y: number }>>([])
+  const [fieldErrors, setFieldErrors] = useState<{
+    username?: string
+    password?: string
+  }>({})
 
   // Floating tetris blocks background effect
   useEffect(() => {
@@ -50,13 +55,34 @@ export default function GamesLogin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Client-side validation with Zod
+    const validationResult = LoginSchema.safeParse({ username, password })
+
+    if (!validationResult.success) {
+      // Extract field-specific errors
+      const errors: { username?: string; password?: string } = {}
+      
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0] === 'username') {
+          errors.username = err.message
+        } else if (err.path[0] === 'password') {
+          errors.password = err.message
+        }
+      })
+
+      setFieldErrors(errors)
+      return // Do not submit if validation fails
+    }
+
     setIsLoading(true)
 
     try {
       const result = await loginWithWordPress(username, password)
 
       if (result.success) {
-        localStorage.setItem('admin_token', 'wp_admin')
+        // Session cookie set by server action - redirect to games
         setTimeout(() => {
           router.push('/games')
         }, 500)
@@ -65,7 +91,9 @@ export default function GamesLogin() {
         setIsLoading(false)
       }
     } catch (err) {
-      console.error(err)
+      if (process.env.NODE_ENV === 'development') {
+        console.error(err)
+      }
       setError('LOGIN FAILED')
       setIsLoading(false)
     }
@@ -250,12 +278,30 @@ export default function GamesLogin() {
                   <input
                     type="text"
                     value={username}
-                    onChange={(e) => setUsername(e.target.value)}
-                    className="relative w-full bg-black/50 border-2 border-cyan-400/30 rounded-xl text-white px-4 py-3 focus:outline-none focus:border-cyan-400 focus:ring-2 focus:ring-cyan-400/50 transition-all placeholder-slate-500"
+                    onChange={(e) => {
+                      setUsername(e.target.value)
+                      if (fieldErrors.username) {
+                        setFieldErrors((prev) => ({ ...prev, username: undefined }))
+                      }
+                    }}
+                    className={`relative w-full bg-black/50 border-2 rounded-xl text-white px-4 py-3 focus:outline-none focus:ring-2 transition-all placeholder-slate-500 ${
+                      fieldErrors.username
+                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50'
+                        : 'border-cyan-400/30 focus:border-cyan-400 focus:ring-cyan-400/50'
+                    }`}
                     placeholder="Enter your username"
                     required
                   />
                 </div>
+                {fieldErrors.username && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-red-400 text-xs"
+                  >
+                    {fieldErrors.username}
+                  </motion.p>
+                )}
               </motion.div>
 
               <motion.div
@@ -272,12 +318,30 @@ export default function GamesLogin() {
                   <input
                     type="password"
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    className="relative w-full bg-black/50 border-2 border-purple-400/30 rounded-xl text-white px-4 py-3 focus:outline-none focus:border-purple-400 focus:ring-2 focus:ring-purple-400/50 transition-all placeholder-slate-500"
+                    onChange={(e) => {
+                      setPassword(e.target.value)
+                      if (fieldErrors.password) {
+                        setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                      }
+                    }}
+                    className={`relative w-full bg-black/50 border-2 rounded-xl text-white px-4 py-3 focus:outline-none focus:ring-2 transition-all placeholder-slate-500 ${
+                      fieldErrors.password
+                        ? 'border-red-500/50 focus:border-red-500 focus:ring-red-500/50'
+                        : 'border-purple-400/30 focus:border-purple-400 focus:ring-purple-400/50'
+                    }`}
                     placeholder="Enter your password"
                     required
                   />
                 </div>
+                {fieldErrors.password && (
+                  <motion.p
+                    initial={{ opacity: 0, y: -5 }}
+                    animate={{ opacity: 1, y: 0 }}
+                    className="mt-2 text-red-400 text-xs"
+                  >
+                    {fieldErrors.password}
+                  </motion.p>
+                )}
               </motion.div>
 
               <motion.button

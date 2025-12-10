@@ -96,13 +96,12 @@ export default function AIHeader() {
             {/* AI Card - Active */}
             <Link href="/ai">
               <motion.div
-              className="hidden md:flex items-center space-x-2 px-3 py-2 bg-white border border-white rounded-lg font-mono text-xs text-black hover:bg-white/90 transition-all duration-300 cursor-pointer group"
+                className="hidden md:flex items-center space-x-2 px-3 py-2 bg-white border border-white rounded-lg font-mono text-xs text-black hover:bg-white/90 transition-all duration-300 cursor-pointer"
                 whileHover={{ scale: 1.05 }}
                 whileTap={{ scale: 0.95 }}
               >
                 <Brain className="w-4 h-4" />
-              <span className="group-hover:hidden">AI</span>
-              <span className="hidden group-hover:inline">THE_CORE</span>
+                <span>AI</span>
               </motion.div>
             </Link>
 

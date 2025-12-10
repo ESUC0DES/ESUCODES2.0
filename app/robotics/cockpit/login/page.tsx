@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from 'framer-motion'
 import { Terminal, Lock } from 'lucide-react'
 import { loginWithWordPress } from '@/actions/wp-auth'
+import { LoginSchema } from '@/lib/schemas/auth'
 
 export default function RoboticsCockpitLogin() {
   const router = useRouter()
@@ -14,6 +15,10 @@ export default function RoboticsCockpitLogin() {
   const [isLoading, setIsLoading] = useState(false)
   const [typingText, setTypingText] = useState('')
   const [isTyping, setIsTyping] = useState(true)
+  const [fieldErrors, setFieldErrors] = useState<{
+    username?: string
+    password?: string
+  }>({})
 
   const fullText = 'INITIALIZING HANGAR SECURITY PROTOCOL...'
 
@@ -35,13 +40,34 @@ export default function RoboticsCockpitLogin() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
     setError('')
+    setFieldErrors({})
+
+    // Client-side validation with Zod
+    const validationResult = LoginSchema.safeParse({ username, password })
+
+    if (!validationResult.success) {
+      // Extract field-specific errors
+      const errors: { username?: string; password?: string } = {}
+      
+      validationResult.error.errors.forEach((err) => {
+        if (err.path[0] === 'username') {
+          errors.username = err.message
+        } else if (err.path[0] === 'password') {
+          errors.password = err.message
+        }
+      })
+
+      setFieldErrors(errors)
+      return // Do not submit if validation fails
+    }
+
     setIsLoading(true)
 
     try {
       const result = await loginWithWordPress(username, password)
 
       if (result.success) {
-        localStorage.setItem('admin_token', 'wp_admin')
+        // Session cookie set by server action - redirect to cockpit
         router.push('/robotics/cockpit')
       } else {
         setError(result.error || 'ACCESS DENIED')
@@ -105,11 +131,23 @@ export default function RoboticsCockpitLogin() {
               <input
                 type="text"
                 value={username}
-                onChange={(e) => setUsername(e.target.value)}
-                className="w-full bg-[#050505] border-2 border-[#10b981] text-[#10b981] px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:ring-offset-2 focus:ring-offset-[#050505]"
+                onChange={(e) => {
+                  setUsername(e.target.value)
+                  if (fieldErrors.username) {
+                    setFieldErrors((prev) => ({ ...prev, username: undefined }))
+                  }
+                }}
+                className={`w-full bg-[#050505] border-2 text-[#10b981] px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#050505] ${
+                  fieldErrors.username
+                    ? 'border-[#ef4444] focus:ring-[#ef4444]'
+                    : 'border-[#10b981] focus:ring-[#10b981]'
+                }`}
                 placeholder="> enter wp username"
                 required
               />
+              {fieldErrors.username && (
+                <p className="mt-2 text-[#ef4444] text-xs font-mono">{fieldErrors.username}</p>
+              )}
             </div>
 
             <div>
@@ -119,11 +157,23 @@ export default function RoboticsCockpitLogin() {
               <input
                 type="password"
                 value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-[#050505] border-2 border-[#10b981] text-[#10b981] px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:ring-offset-2 focus:ring-offset-[#050505]"
+                onChange={(e) => {
+                  setPassword(e.target.value)
+                  if (fieldErrors.password) {
+                    setFieldErrors((prev) => ({ ...prev, password: undefined }))
+                  }
+                }}
+                className={`w-full bg-[#050505] border-2 text-[#10b981] px-4 py-3 font-mono text-sm focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-offset-[#050505] ${
+                  fieldErrors.password
+                    ? 'border-[#ef4444] focus:ring-[#ef4444]'
+                    : 'border-[#10b981] focus:ring-[#10b981]'
+                }`}
                 placeholder="> enter app password"
                 required
               />
+              {fieldErrors.password && (
+                <p className="mt-2 text-[#ef4444] text-xs font-mono">{fieldErrors.password}</p>
+              )}
             </div>
 
             <motion.button
