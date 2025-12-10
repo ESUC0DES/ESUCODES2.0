@@ -11,7 +11,7 @@ import { logError, SystemError } from '@/lib/errors'
 import { logger } from '@/lib/logger'
 
 // Public API URL (safe to expose)
-const WORDPRESS_API_URL = process.env.NEXT_PUBLIC_WORDPRESS_API_URL || ''
+const WORDPRESS_API_URL = process.env.WORDPRESS_API_URL || ''
 
 // SECURITY: Sensitive credentials - server-only, never exposed to client
 const WORDPRESS_AUTH_USER = process.env.WORDPRESS_AUTH_USER || ''

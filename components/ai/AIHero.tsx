@@ -186,39 +186,6 @@ export default function AIHero() {
           </span>
         </motion.h1>
 
-        {showEye && (
-          <motion.div
-            className="flex justify-center mb-8"
-            initial={{ opacity: 0, scale: 0.7 }}
-            animate={{ opacity: 1, scale: 1 }}
-            transition={{ duration: 0.6 }}
-          >
-            <motion.div
-              className="w-36 h-36 rounded-full border-2 border-white/60 flex items-center justify-center bg-black/70 overflow-hidden"
-              animate={{
-                scaleY: [1, 0.05, 1],
-              }}
-              transition={{
-                scaleY: {
-                  duration: 0.2,
-                  times: [0, 0.5, 1],
-                  repeat: Infinity,
-                  repeatDelay: 3,
-                },
-              }}
-            >
-              <div className="w-24 h-24 rounded-full border border-white/40 flex items-center justify-center bg-black">
-                <motion.div
-                  className="w-5 h-5 rounded-full bg-white flex items-center justify-center"
-                  animate={{ x: pupilOffsetX, y: pupilOffsetY }}
-                  transition={{ type: 'spring', stiffness: 220, damping: 9, mass: 0.18 }}
-                >
-                  <div className="w-2.5 h-2.5 rounded-full bg-black" />
-                </motion.div>
-              </div>
-            </motion.div>
-          </motion.div>
-        )}
 
         <motion.p
           className="text-xl md:text-2xl text-gray-400 mb-8 font-mono space-x-2"
