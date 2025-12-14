@@ -98,10 +98,10 @@ export const teamMembers: TeamMember[] = [
       },
     ],
     customization: {
-      //backgroundColor: '#132758', // Siyah arka plan
+      //backgroundColor: '#ff6eafff', // Siyah arka plan
       // backgroundImage: '/images/image.png', // Örnek: Arka plan resmi
-      // backgroundOverlay: 'rgba(10, 10, 15, 0.7)', // Örnek: Resim üzerine overlay
-      // backgroundPosition: 'center',
+      // backgroundOverlay: 'rgba(107, 255, 8, 0.7)', // Örnek: Resim üzerine overlay
+      // backgroundPosition: 'left',
       // backgroundSize: 'cover',
     },
   },
