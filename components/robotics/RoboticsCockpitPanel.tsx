@@ -1,10 +1,10 @@
- 'use client'
- 
- import { useState, useEffect } from 'react'
- import { useRouter } from 'next/navigation'
- import { motion } from 'framer-motion'
- import CockpitDisplay from '@/components/cockpit/CockpitDisplay'
- import TerminalLog from '@/components/cockpit/TerminalLog'
+'use client'
+
+import { useState, useEffect } from 'react'
+import { useRouter } from 'next/navigation'
+import { motion } from 'framer-motion'
+import CockpitDisplay from '@/components/cockpit/CockpitDisplay'
+import TerminalLog from '@/components/cockpit/TerminalLog'
 import {
   getRobotProjects,
   createRobotProject,
@@ -13,8 +13,10 @@ import {
   type RobotProjectStatus,
 } from '@/actions/robot-projects'
 import { checkAuth } from '@/app/robotics/cockpit/check-auth'
- 
- export default function RoboticsCockpitPanel() {
+
+import TelemetryPanel from '@/components/robotics/TelemetryPanel'
+
+export default function RoboticsCockpitPanel() {
   const router = useRouter()
   const [checkedAuth, setCheckedAuth] = useState(false)
   const [lastUpdate, setLastUpdate] = useState('Just now')
@@ -27,6 +29,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
   const [formName, setFormName] = useState('')
   const [formDescription, setFormDescription] = useState('')
   const [formGithubUrl, setFormGithubUrl] = useState('')
+  const [formTechnologies, setFormTechnologies] = useState<string>('')
   const [isSavingProject, setIsSavingProject] = useState(false)
   const [terminalLog, setTerminalLog] = useState<{
     message: string
@@ -88,6 +91,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
     setFormName('')
     setFormDescription('')
     setFormGithubUrl('')
+    setFormTechnologies('')
     setFormStatus('planned')
     setIsModalOpen(true)
   }
@@ -97,6 +101,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
     setFormName(project.name)
     setFormDescription(project.description)
     setFormGithubUrl(project.githubUrl || '')
+    setFormTechnologies(project.technologies?.join(', ') || '')
     setFormStatus(project.status)
     setIsModalOpen(true)
   }
@@ -111,6 +116,8 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
     setIsSavingProject(true)
 
     try {
+      const techArray = formTechnologies.split(',').map(s => s.trim()).filter(s => s !== '')
+
       if (editingProject) {
         const updated = await updateRobotProject({
           ...editingProject,
@@ -118,6 +125,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
           description: formDescription.trim(),
           githubUrl: formGithubUrl.trim() || undefined,
           status: formStatus,
+          technologies: techArray,
         })
 
         setProjects((prev) =>
@@ -130,6 +138,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
           description: formDescription.trim(),
           githubUrl: formGithubUrl.trim() || undefined,
           status: formStatus,
+          technologies: techArray,
         })
         setProjects((prev) => [...prev, created])
         showTerminalLog('PROJECT CREATED', 'success')
@@ -151,7 +160,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
   }
 
   return (
-    <div className="min-h-screen p-8">
+    <div className="min-h-screen p-8 bg-[#020617]">
       <div className="max-w-7xl mx-auto">
         {/* Header */}
         <motion.div
@@ -160,13 +169,13 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
           className="mb-8 flex flex-col md:flex-row md:items-center md:justify-between gap-4"
         >
           <div>
-            <h1 className="text-4xl font-bold text-[#10b981] mb-2 uppercase tracking-wider">
+            <h1 className="text-4xl font-bold text-[#10b981] mb-2 uppercase tracking-wider font-mono">
               HANGAR COCKPIT
             </h1>
-            <p className="text-[#334155] font-mono text-sm">
+            <p className="text-slate-400 font-mono text-sm">
               PROJECT CONTROL INTERFACE
             </p>
-            <p className="text-[#334155] font-mono text-xs mt-1">
+            <p className="text-slate-500 font-mono text-xs mt-1">
               Last sync: {lastUpdate}
             </p>
           </div>
@@ -180,24 +189,33 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
           </div>
         </motion.div>
 
-        {/* Top: Robot Status */}
-        <motion.div
-          initial={{ opacity: 0, y: 20 }}
-          animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.1 }}
-          className="mb-10"
-        >
-          <CockpitDisplay status="online" lastUpdate={lastUpdate} />
-        </motion.div>
+        {/* Top: Robot Status & Telemetry */}
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-8 mb-10">
+          <motion.div
+            initial={{ opacity: 0, x: -20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.1 }}
+          >
+            <CockpitDisplay status="online" lastUpdate={lastUpdate} />
+          </motion.div>
+
+          <motion.div
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            transition={{ delay: 0.2 }}
+          >
+            <TelemetryPanel />
+          </motion.div>
+        </div>
 
         {/* Kanban Board */}
         <motion.div
           initial={{ opacity: 0, y: 20 }}
           animate={{ opacity: 1, y: 0 }}
-          transition={{ delay: 0.2 }}
-          className="grid grid-cols-1 md:grid-cols-3 gap-6"
+          transition={{ delay: 0.3 }}
+          className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6"
         >
-          {(['planned', 'in-progress', 'completed'] as RobotProjectStatus[]).map(
+          {(['planned', 'in-progress', 'testing', 'completed'] as RobotProjectStatus[]).map(
             (columnStatus) => {
               const columnProjects = projects.filter(
                 (p) => p.status === columnStatus
@@ -207,29 +225,31 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
                   ? 'PLANNED'
                   : columnStatus === 'in-progress'
                     ? 'IN PROGRESS'
-                    : 'COMPLETED'
+                    : columnStatus === 'testing'
+                      ? 'TESTING'
+                      : 'COMPLETED'
 
               return (
                 <div
                   key={columnStatus}
-                  className="bg-[#050505] border-2 border-[#334155] p-4 flex flex-col min-h-[260px]"
+                  className="bg-[#050505] border-2 border-[#334155] p-4 flex flex-col min-h-[300px] shadow-[0_0_20px_rgba(0,0,0,0.5)]"
                 >
-                  <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-sm font-mono text-[#10b981] uppercase tracking-wider">
+                  <div className="flex items-center justify-between mb-4 border-b border-[#334155] pb-2">
+                    <h2 className="text-xs font-mono text-[#10b981] uppercase tracking-wider">
                       {title}
                     </h2>
-                    <span className="text-xs font-mono text-[#334155]">
+                    <span className="text-[10px] font-mono text-[#334155]">
                       {columnProjects.length} items
                     </span>
                   </div>
 
-                  <div className="space-y-3 flex-1">
+                  <div className="space-y-3 flex-1 overflow-y-auto pr-1">
                     {isLoadingProjects && projects.length === 0 ? (
                       <p className="text-xs font-mono text-[#334155]">
                         Loading projects...
                       </p>
                     ) : columnProjects.length === 0 ? (
-                      <p className="text-xs font-mono text-[#334155]">
+                      <p className="text-xs font-mono text-[#334155] italic">
                         No projects in this lane.
                       </p>
                     ) : (
@@ -238,20 +258,27 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
                           key={project.id}
                           type="button"
                           onClick={() => handleEditProject(project)}
-                          className="w-full text-left bg-[#050505] border border-[#334155] hover:border-[#10b981] hover:shadow-[0_0_15px_rgba(16,185,129,0.4)] transition-all duration-300 p-3 font-mono text-xs"
+                          className="w-full text-left bg-[#050505]/50 border border-[#334155] hover:border-[#10b981] hover:shadow-[0_0_15px_rgba(16,185,129,0.3)] transition-all duration-300 p-3 font-mono text-xs group"
                         >
                           <div className="flex items-center justify-between mb-1">
-                            <span className="text-[#10b981] font-semibold">
+                            <span className="text-[#10b981] font-semibold group-hover:text-white transition-colors">
                               {project.name}
                             </span>
                           </div>
-                          <p className="text-[#94a3b8] text-[11px] line-clamp-3">
+                          <p className="text-slate-400 text-[10px] line-clamp-2 leading-relaxed">
                             {project.description}
                           </p>
-                          {project.githubUrl && (
-                            <p className="mt-2 text-[10px] text-[#0ea5e9] truncate">
-                              {project.githubUrl}
-                            </p>
+                          {project.technologies && project.technologies.length > 0 && (
+                            <div className="mt-2 flex flex-wrap gap-1">
+                              {project.technologies.slice(0, 3).map(tech => (
+                                <span key={tech} className="text-[8px] bg-[#10b981]/10 text-[#10b981] px-1 py-0.5 border border-[#10b981]/20">
+                                  {tech}
+                                </span>
+                              ))}
+                              {project.technologies.length > 3 && (
+                                <span className="text-[8px] text-[#334155]">+{project.technologies.length - 3}</span>
+                              )}
+                            </div>
                           )}
                         </button>
                       ))
@@ -289,24 +316,25 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
                 <label className="block text-[#10b981] text-xs mb-1 uppercase tracking-wider">
                   STATUS
                 </label>
-                <div className="flex gap-2">
-                  {(['planned', 'in-progress', 'completed'] as RobotProjectStatus[]).map(
+                <div className="grid grid-cols-2 gap-2">
+                  {(['planned', 'in-progress', 'testing', 'completed'] as RobotProjectStatus[]).map(
                     (s) => (
                       <button
                         key={s}
                         type="button"
                         onClick={() => setFormStatus(s)}
-                        className={`flex-1 px-3 py-2 text-xs border-2 ${
-                          formStatus === s
-                            ? 'border-[#10b981] text-[#10b981]'
-                            : 'border-[#334155] text-[#334155]'
-                        }`}
+                        className={`px-3 py-2 text-[10px] border-2 transition-all duration-200 ${formStatus === s
+                            ? 'border-[#10b981] text-[#10b981] bg-[#10b981]/10'
+                            : 'border-[#334155] text-slate-500 hover:border-slate-500'
+                          }`}
                       >
                         {s === 'planned'
                           ? 'PLANNED'
                           : s === 'in-progress'
                             ? 'IN PROGRESS'
-                            : 'COMPLETED'}
+                            : s === 'testing'
+                              ? 'TESTING'
+                              : 'COMPLETED'}
                       </button>
                     )
                   )}
@@ -320,9 +348,22 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
                 <textarea
                   value={formDescription}
                   onChange={(e) => setFormDescription(e.target.value)}
-                  className="w-full bg-[#050505] border-2 border-[#334155] text-[#e5e7eb] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:ring-offset-2 focus:ring-offset-[#050505] resize-none"
+                  className="w-full bg-[#050505] border-2 border-[#334155] text-slate-300 px-3 py-2 text-xs focus:outline-none focus:border-[#10b981] transition-colors resize-none"
                   rows={3}
                   placeholder="Short technical description..."
+                />
+              </div>
+
+              <div>
+                <label className="block text-[#10b981] text-xs mb-1 uppercase tracking-wider">
+                  TECHNOLOGIES (COMMA SEPARATED)
+                </label>
+                <input
+                  type="text"
+                  value={formTechnologies}
+                  onChange={(e) => setFormTechnologies(e.target.value)}
+                  className="w-full bg-[#050505] border-2 border-[#334155] text-slate-300 px-3 py-2 text-xs focus:outline-none focus:border-[#10b981] transition-colors"
+                  placeholder="ROS2, Python, Lidar..."
                 />
               </div>
 
@@ -334,7 +375,7 @@ import { checkAuth } from '@/app/robotics/cockpit/check-auth'
                   type="url"
                   value={formGithubUrl}
                   onChange={(e) => setFormGithubUrl(e.target.value)}
-                  className="w-full bg-[#050505] border-2 border-[#334155] text-[#0ea5e9] px-3 py-2 text-xs focus:outline-none focus:ring-2 focus:ring-[#10b981] focus:ring-offset-2 focus:ring-offset-[#050505]"
+                  className="w-full bg-[#050505] border-2 border-[#334155] text-[#0ea5e9] px-3 py-2 text-xs focus:outline-none focus:border-[#10b981] transition-colors"
                   placeholder="https://github.com/esucodes/pankek"
                 />
               </div>

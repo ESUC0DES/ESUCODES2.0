@@ -3,6 +3,17 @@
 import { motion } from 'framer-motion'
 import { Bot, Cpu, Zap, Target } from 'lucide-react'
 
+import dynamic from 'next/dynamic'
+
+const RobotScene = dynamic(() => import('./RobotScene'), {
+  ssr: false,
+  loading: () => (
+    <div className="flex items-center justify-center w-full h-full">
+      <Bot className="w-12 h-12 text-orange-500 animate-pulse" />
+    </div>
+  )
+})
+
 export default function Robot3DSection() {
   return (
     <section className="py-20 bg-slate-950 relative overflow-hidden">
@@ -20,7 +31,7 @@ export default function Robot3DSection() {
 
       <div className="container mx-auto px-4 relative z-10">
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-12 items-center">
-          {/* Left: 3D Model Placeholder */}
+          {/* Left: 3D Model Section */}
           <motion.div
             initial={{ opacity: 0, x: -50 }}
             whileInView={{ opacity: 1, x: 0 }}
@@ -28,30 +39,15 @@ export default function Robot3DSection() {
             transition={{ duration: 0.8 }}
             className="relative"
           >
-            <div className="relative w-full h-96 border-2 border-dashed border-orange-500/50 rounded-lg bg-slate-900/30 overflow-hidden">
-              {/* 3D Model Placeholder */}
-              <div className="absolute inset-0 flex items-center justify-center">
-                <motion.div
-                  animate={{
-                    rotateY: [0, 360],
-                  }}
-                  transition={{
-                    duration: 20,
-                    repeat: Infinity,
-                    ease: 'linear',
-                  }}
-                  className="w-64 h-64 flex items-center justify-center"
-                  style={{
-                    transformStyle: 'preserve-3d',
-                  }}
-                >
-                  <Bot className="w-48 h-48 text-orange-500/50" />
-                </motion.div>
+            <div className="relative w-full h-[500px] border-2 border-dashed border-orange-500/50 rounded-lg bg-slate-900/30 overflow-hidden">
+              {/* 3D Model Scene */}
+              <div className="absolute inset-0">
+                <RobotScene />
               </div>
 
               {/* Animated Grid Overlay */}
               <div
-                className="absolute inset-0 opacity-20"
+                className="absolute inset-0 opacity-20 pointer-events-none"
                 style={{
                   backgroundImage: `
                     linear-gradient(rgba(251, 146, 60, 0.3) 1px, transparent 1px),

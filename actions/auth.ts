@@ -100,7 +100,7 @@ function storeSession(
   // TODO: Replace with Redis/Database
   // Example Redis: await redis.setex(`session:${token}`, ttl, JSON.stringify(sessionData))
   // Example DB: await db.sessions.create({ token, userId, username, expiresAt, lastActivity })
-  
+
   const now = Date.now()
   sessionStore.set(token, {
     token,
@@ -126,22 +126,22 @@ function validateSession(token: string, updateActivity: boolean = true): StoredS
   // TODO: Replace with Redis/Database
   // Example Redis: const sessionData = await redis.get(`session:${token}`)
   // Example DB: const session = await db.sessions.findOne({ where: { token } })
-  
+
   const session = sessionStore.get(token)
-  
+
   if (!session) {
     return null
   }
-  
+
   const now = Date.now()
-  
+
   // Check if session has expired (absolute expiration)
   if (now > session.expiresAt) {
     // Clean up expired session
     sessionStore.delete(token)
     return null
   }
-  
+
   // Check sliding window timeout (30 minutes of inactivity)
   const timeSinceLastActivity = now - session.lastActivity
   if (timeSinceLastActivity > SESSION_TIMEOUT_MS) {
@@ -149,19 +149,19 @@ function validateSession(token: string, updateActivity: boolean = true): StoredS
     sessionStore.delete(token)
     return null
   }
-  
+
   // Update lastActivity timestamp (sliding window - active users stay logged in)
   if (updateActivity) {
     session.lastActivity = now
     sessionStore.set(token, session)
   }
-  
+
   // Periodic cleanup (runs on every validation)
   // TODO: In production, use Redis TTL or database cleanup job
   if (Math.random() < 0.01) { // ~1% chance to run cleanup
     cleanupExpiredSessions()
   }
-  
+
   return session
 }
 
@@ -175,7 +175,7 @@ function removeSession(token: string): void {
   // TODO: Replace with Redis/Database
   // Example Redis: await redis.del(`session:${token}`)
   // Example DB: await db.sessions.destroy({ where: { token } })
-  
+
   sessionStore.delete(token)
 }
 
@@ -214,7 +214,7 @@ export async function loginWithWordPress(
       // Rate limit exceeded - do not process login attempt
       const resetTime = new Date(rateLimitResult.reset)
       const secondsUntilReset = Math.ceil((rateLimitResult.reset - Date.now()) / 1000)
-      
+
       return {
         success: false,
         error: `Çok fazla deneme yaptınız. Lütfen ${secondsUntilReset} saniye sonra tekrar deneyin.`,
@@ -223,7 +223,7 @@ export async function loginWithWordPress(
 
     // Server-side validation with Zod - Security layer
     const validationResult = LoginSchema.safeParse({ username, password })
-    
+
     if (!validationResult.success) {
       // Log validation errors for debugging
       logError(new SystemError('Login validation failed'), {
@@ -337,7 +337,7 @@ export async function loginWithWordPress(
       username,
       originalError: error,
     })
-    
+
     // Return generic error message to client
     return {
       success: false,
@@ -449,7 +449,7 @@ export async function isAuthenticated(): Promise<boolean> {
  */
 export async function requireAuth(redirectTo: string = '/admin/login'): Promise<SessionData> {
   const session = await getSession()
-  
+
   if (!session) {
     redirect(redirectTo)
   }
